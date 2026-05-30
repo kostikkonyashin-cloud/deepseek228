@@ -17,6 +17,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use App\Models\Order;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+
 
 class AdminProductController extends Controller
 {
@@ -214,4 +218,74 @@ class AdminProductController extends Controller
 
         return back()->with('success', "Товар '{$product->name}' теперь {$status}");
     }
+
+        public function exportOrders(Request $request)
+    {
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+
+        $orders = Order::with(['user', 'orderItems.product'])
+            ->when($startDate, fn($q) => $q->whereDate('created_at', '>=', $startDate))
+            ->when($endDate, fn($q) => $q->whereDate('created_at', '<=', $endDate))
+            ->get();
+
+        return new StreamedResponse(function () use ($orders) {
+            $handle = fopen('php://output', 'w');
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF)); // BOM для Excel (кириллица)
+            fputcsv($handle, ['ID', 'Номер заказа', 'Дата', 'Клиент', 'Сумма', 'Статус', 'Товары'], ';');
+
+            foreach ($orders as $order) {
+                $items = $order->orderItems->map(fn($item) => ($item->product->name ?? 'Удален') . " (x{$item->quantity})")->implode(', ');
+                fputcsv($handle, [
+                    $order->id,
+                    $order->order_number,
+                    $order->created_at,
+                    $order->user->name ?? 'Гость',
+                    $order->total_amount,
+                    $order->status,
+                    $items
+                ], ';');
+            }
+            fclose($handle);
+        }, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="orders_export_' . date('Y-m-d') . '.csv"',
+        ]);
+    }
+
+    public function exportInventory()
+    {
+        $products = Product::with(['category', 'brand'])->orderBy('product_count', 'desc')->get();
+
+        return new StreamedResponse(function () use ($products) {
+            $handle = fopen('php://output', 'w');
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+            fputcsv($handle, ['ID', 'Товар', 'Категория', 'Бренд', 'Цена', 'Остаток'], ';');
+
+            foreach ($products as $p) {
+                fputcsv($handle, [
+                    $p->id,
+                    $p->name,
+                    $p->category->name ?? '-',
+                    $p->brand->name ?? '-',
+                    $p->price,
+                    $p->product_count
+                ], ';');
+            }
+
+            // Добавляем пустую строку и заголовок для закончившихся
+            fputcsv($handle, [], ';');
+            fputcsv($handle, ['ТОВАРЫ КОТОРЫЕ ЗАКОНЧИЛИСЬ (0 шт)'], ';');
+
+            foreach ($products->where('product_count', '<=', 0) as $p) {
+                fputcsv($handle, [$p->id, $p->name, $p->category->name ?? '-', $p->brand->name ?? '-', $p->price, 'ЗАКОНЧИЛСЯ'], ';');
+            }
+            
+            fclose($handle);
+        }, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="inventory_' . date('Y-m-d') . '.csv"',
+        ]);
+    }
+
 }

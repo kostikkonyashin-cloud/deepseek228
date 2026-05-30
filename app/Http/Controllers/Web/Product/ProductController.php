@@ -50,6 +50,22 @@ class ProductController extends Controller
 
         $category = Category::where('slug', $category)->first();
 
+        // ПРОВЕРКА ИЗБРАННОГО ДЛЯ АВТОРИЗОВАННЫХ ПОЛЬЗОВАТЕЛЕЙ
+        if (auth()->check()) {
+            // Получаем ID всех избранных товаров пользователя
+            $favoriteIds = auth()->user()->favorites()->pluck('product_id')->toArray();
+
+            // Добавляем статус is_favorited к каждому продукту в коллекции
+            $products->getCollection()->each(function ($product) use ($favoriteIds) {
+                $product->is_favorited = in_array($product->id, $favoriteIds);
+            });
+        } else {
+            // Если пользователь не авторизован, ставим false всем товарам
+            $products->getCollection()->each(function ($product) {
+                $product->is_favorited = false;
+            });
+        }
+
         return Inertia::render('product/IndexPage', compact(['products', 'category', 'category_types', 'filters', 'sizes', 'colors', 'materials', 'min_price', 'max_price']));
     }
 
@@ -105,7 +121,14 @@ class ProductController extends Controller
 
     public function show(string $category, string $product)
     {
-        $show_product = Product::with(['category', 'brand', 'sizes', 'colors', 'materials'])->where('slug', $product)->first();
+        $show_product = Product::with(['category', 'brand', 'sizes', 'colors', 'materials', 'productImages'])->where('slug', $product)->firstOrFail();
+
+        // Проверка избранного для авторизованных пользователей
+        if (auth()->check()) {
+            $show_product->is_favorited = auth()->user()->favorites()->where('product_id', $show_product->id)->exists();
+        } else {
+            $show_product->is_favorited = false;
+        }
 
         return Inertia::render('product/ShowPage', [
             'product' => $show_product

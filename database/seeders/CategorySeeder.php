@@ -23,7 +23,8 @@ class CategorySeeder extends Seeder
         foreach ($this->categories as $category) {
             $newCategory = Category::create($category);
             $newCategory->update([
-                'icon_path' => "/storage/images/miniicon{$newCategory->id}.png"
+                'icon_path' => "/storage/images/categories/{$newCategory->slug}/1.png",
+                'image_path' => "/storage/images/categories/{$newCategory->slug}/2.png",
             ]);
         }
     }

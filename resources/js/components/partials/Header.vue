@@ -6,11 +6,61 @@ const page = usePage()
 
 const categories = computed(() => page.props.categories || [])
 
+
 const isAuthenticated = computed(() => page.props.isAuthenticated || false)
 
 const showMobileMenu = ref(false)
 const showMobileSearch = ref(false)
 const searchQuery = ref('')
+
+// Состояние для карусели категорий
+const scrollContainer = ref(null)
+const canScrollLeft = ref(false)
+const canScrollRight = ref(false)
+
+// Функции для карусели
+const checkScrollButtons = () => {
+    if (scrollContainer.value) {
+        canScrollLeft.value = scrollContainer.value.scrollLeft > 0
+        canScrollRight.value =
+            scrollContainer.value.scrollLeft <
+            scrollContainer.value.scrollWidth - scrollContainer.value.clientWidth - 5
+    }
+}
+
+const scroll = (direction) => {
+    if (scrollContainer.value) {
+        const scrollAmount = direction === 'left' ? -300 : 300
+        scrollContainer.value.scrollBy({ left: scrollAmount, behavior: 'smooth' })
+        // Проверяем кнопки после анимации
+        setTimeout(checkScrollButtons, 300)
+    }
+}
+
+// Следим за изменением размера окна
+const handleResize = () => {
+    checkScrollButtons()
+}
+
+// Инициализация при монтировании
+import { onMounted, onUnmounted, nextTick } from 'vue'
+
+onMounted(() => {
+    nextTick(() => {
+        checkScrollButtons()
+        if (scrollContainer.value) {
+            scrollContainer.value.addEventListener('scroll', checkScrollButtons)
+        }
+        window.addEventListener('resize', handleResize)
+    })
+})
+
+onUnmounted(() => {
+    if (scrollContainer.value) {
+        scrollContainer.value.removeEventListener('scroll', checkScrollButtons)
+    }
+    window.removeEventListener('resize', handleResize)
+})
 
 const toggleMobileMenu = () => {
     showMobileMenu.value = !showMobileMenu.value
@@ -96,17 +146,27 @@ const performSearch = () => {
                         </svg>
                     </button>
 
+                    <!-- Избранное (только для авторизованных) -->
+                    <Link :href="route('favorites.index')" v-if="isAuthenticated" class="flex flex-col items-center cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                        <span class="hidden sm:block">Избранное</span>
+                    </Link>
+
+                    <!-- Корзина -->
                     <Link :href="route('cart.index')" class="flex flex-col items-center">
-                        <div class="relative">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                                stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                            </svg>
-                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-1.5 1.5M17 13l1.5 1.5M9 21a1 1 0 100-2 1 1 0 000 2zM17 21a1 1 0 100-2 1 1 0 000 2z" />
+                        </svg>
                         <span class="hidden sm:block">Корзина</span>
                     </Link>
 
+                    <!-- Профиль/Вход -->
                     <Link :href="isAuthenticated ? route('profile.index') : route('login.create')"
                         class="flex flex-col items-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
@@ -138,26 +198,50 @@ const performSearch = () => {
         </div>
 
         <nav class="w-full px-4">
-            <div class="w-full max-w-7xl mx-auto">
-                <div class="hidden lg:flex gap-8 px-4 py-2 overflow-x-auto">
-                    <Link v-for="category in categories" :key="category.id"
-                        :href="route('product.index', { category: category.slug })"
-                        class="flex items-center gap-2 shrink-0 hover:text-blue-600 transition-colors">
-                        <img v-if="category.icon_path" :src="`${route('index')}${category.icon_path}`"
-                            :alt="category.name" class="w-5 h-5">
-                        <span>{{ category.name }}</span>
-                    </Link>
+            <div class="w-full max-w-7xl mx-auto relative">
+                <!-- Контейнер с каруселью -->
+                <div class="relative flex items-center">
+                    <!-- Кнопка "Назад" -->
+                    <button v-if="canScrollLeft" @click="scroll('left')"
+                        class="absolute left-0 z-10 bg-white rounded-full shadow-lg p-2 hover:bg-gray-50 transition-all -translate-x-2"
+                        :class="{ 'opacity-100': canScrollLeft, 'opacity-0 pointer-events-none': !canScrollLeft }">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
 
-                    <Link :href="route('brand.index')"
-                        class="flex items-center gap-1 shrink-0 hover:text-blue-600 transition-colors">
-                        <span>Бренды</span>
-                    </Link>
+                    <!-- Скроллящийся контейнер -->
+                    <div ref="scrollContainer" class="flex gap-8 px-4 py-3 overflow-x-auto scroll-smooth hide-scrollbar"
+                        style="scrollbar-width: none; -ms-overflow-style: none;">
+                        <Link v-for="category in categories" :key="category.id"
+                            :href="route('product.index', { category: category.slug })"
+                            class="flex items-center gap-2 shrink-0 hover:text-blue-600 transition-colors whitespace-nowrap">
+                            <img v-if="category.icon_path" :src="`${route('index')}${category.icon_path}`"
+                                :alt="category.name" class="w-5 h-5">
+                            <span>{{ category.name }}</span>
+                        </Link>
 
-                    <Link :href="route('about-company.index')"
-                        class="flex items-center gap-2 shrink-0 hover:text-blue-600 transition-colors">
-                        <img :src="`${route('index')}/storage/images/miniicon10.png`" class="w-5 h-5">
-                        <span>Где мы находимся?</span>
-                    </Link>
+                        <Link :href="route('brand.index')"
+                            class="flex items-center gap-1 shrink-0 hover:text-blue-600 transition-colors whitespace-nowrap">
+                            <span>Бренды</span>
+                        </Link>
+
+                        <Link :href="route('about-company.index')"
+                            class="flex items-center gap-2 shrink-0 hover:text-blue-600 transition-colors whitespace-nowrap">
+                            <img :src="`${route('index')}/storage/images/miniicon10.png`" class="w-5 h-5">
+                            <span>Где мы находимся?</span>
+                        </Link>
+                    </div>
+
+                    <!-- Кнопка "Вперед" -->
+                    <button v-if="canScrollRight" @click="scroll('right')"
+                        class="absolute right-0 z-10 bg-white rounded-full shadow-lg p-2 hover:bg-gray-50 transition-all translate-x-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
                 </div>
 
                 <!-- Мобильное меню (выпадающее) -->
@@ -181,6 +265,19 @@ const performSearch = () => {
                                 </svg>
                                 <span>Задать вопрос в Telegram</span>
                             </a>
+                        </div>
+
+                        <!-- Избранное в мобильном меню -->
+                        <div v-if="isAuthenticated" class="space-y-2">
+                            <div class="font-semibold text-gray-500 text-sm mb-2">Избранное</div>
+                            <div class="flex items-center gap-3 p-3 rounded-lg text-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                </svg>
+                                <span>Мои избранные товары</span>
+                            </div>
                         </div>
 
                         <div class="space-y-2">
@@ -209,3 +306,9 @@ const performSearch = () => {
         </nav>
     </header>
 </template>
+
+<style scoped>
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+</style>

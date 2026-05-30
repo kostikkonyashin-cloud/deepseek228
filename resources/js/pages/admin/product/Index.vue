@@ -27,6 +27,8 @@ const categoryFilter = ref(props.filters.category || '')
 const brandFilter = ref(props.filters.brand || '')
 const statusFilter = ref(props.filters.status || '')
 const searchTimeout = ref(null)
+const isLoadingExport = ref(false)
+const exportErrors = ref([])
 
 const paginationLinks = computed(() => props.products.links || [])
 
@@ -83,6 +85,131 @@ const getStatusBadgeClass = (isAvailable) => {
 
 const getStatusText = (isAvailable) => {
     return isAvailable ? 'Доступен' : 'Недоступен'
+}
+
+const startDate = ref('')
+const endDate = ref('')
+
+// Очистка ошибок
+const clearErrors = () => {
+    exportErrors.value = []
+}
+
+// Валидация дат
+const validateDates = () => {
+    const errors = []
+    
+    if (startDate.value && endDate.value) {
+        const start = new Date(startDate.value)
+        const end = new Date(endDate.value)
+        
+        if (start > end) {
+            errors.push('Дата "От" не может быть позже даты "До"')
+        }
+    }
+    
+    return errors
+}
+
+// Экспорт заказов
+const handleExportOrders = async () => {
+    clearErrors()
+    
+    // Валидация дат
+    const validationErrors = validateDates()
+    if (validationErrors.length > 0) {
+        exportErrors.value = validationErrors
+        return
+    }
+    
+    isLoadingExport.value = true
+    
+    try {
+        let url = '/admin/export-orders?'
+        if (startDate.value) url += `start_date=${startDate.value}&`
+        if (endDate.value) url += `end_date=${endDate.value}`
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+            }
+        })
+        
+        if (response.status === 422) {
+            const errorData = await response.json()
+            exportErrors.value = errorData.errors || ['Ошибка валидации данных']
+            return
+        }
+        
+        if (response.status === 404) {
+            const errorData = await response.json()
+            exportErrors.value = errorData.errors || ['Данные не найдены']
+            return
+        }
+        
+        if (!response.ok) {
+            throw new Error('Ошибка при экспорте')
+        }
+        
+        // Скачивание файла
+        const blob = await response.blob()
+        const url_ = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url_
+        a.download = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'orders_report.xlsx'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url_)
+        
+    } catch (error) {
+        console.error('Export error:', error)
+        exportErrors.value = ['Произошла ошибка при экспорте. Попробуйте позже.']
+    } finally {
+        isLoadingExport.value = false
+    }
+}
+
+// Экспорт остатков
+const handleExportInventory = async () => {
+    clearErrors()
+    isLoadingExport.value = true
+    
+    try {
+        const response = await fetch('/admin/export-inventory', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+            }
+        })
+        
+        if (response.status === 404) {
+            const errorData = await response.json()
+            exportErrors.value = errorData.errors || ['Данные не найдены']
+            return
+        }
+        
+        if (!response.ok) {
+            throw new Error('Ошибка при экспорте')
+        }
+        
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'inventory_report.xlsx'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+        
+    } catch (error) {
+        console.error('Export error:', error)
+        exportErrors.value = ['Произошла ошибка при экспорте. Попробуйте позже.']
+    } finally {
+        isLoadingExport.value = false
+    }
 }
 </script>
 
@@ -249,7 +376,109 @@ const getStatusText = (isAvailable) => {
                         ]" v-html="link.label" />
                     </div>
                 </div>
+
+                <!-- СЕКЦИЯ ЭКСПОРТА -->
+                <div class="mt-10 pt-10 border-t border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 00-2-2V5a2 2 0 002-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Экспорт отчетов
+                    </h3>
+                    
+                    <!-- Блок с ошибками -->
+                    <div v-if="exportErrors.length > 0" class="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                        <div class="flex items-start gap-3">
+                            <svg class="w-5 h-5 text-red-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div class="flex-1">
+                                <p class="font-semibold text-red-800 mb-1">Ошибка при экспорте:</p>
+                                <ul class="list-disc list-inside text-red-700 text-sm">
+                                    <li v-for="error in exportErrors" :key="error">{{ error }}</li>
+                                </ul>
+                            </div>
+                            <button @click="clearErrors" class="text-red-500 hover:text-red-700">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Блок 1 - Заказы -->
+                        <div class="bg-gray-50 border border-gray-200 p-5 rounded-2xl">
+                            <p class="text-sm font-semibold text-gray-700 mb-4">Покупки за период</p>
+                            <div class="flex flex-wrap gap-3 items-end">
+                                <div class="flex-1 min-w-[140px]">
+                                    <span class="text-[10px] uppercase text-gray-400 font-bold ml-1">От</span>
+                                    <input 
+                                        type="date" 
+                                        v-model="startDate" 
+                                        :max="endDate || undefined"
+                                        class="w-full mt-1 border-gray-300 rounded-xl text-sm focus:ring-black focus:border-black"
+                                    >
+                                </div>
+                                <div class="flex-1 min-w-[140px]">
+                                    <span class="text-[10px] uppercase text-gray-400 font-bold ml-1">До</span>
+                                    <input 
+                                        type="date" 
+                                        v-model="endDate" 
+                                        :min="startDate || undefined"
+                                        class="w-full mt-1 border-gray-300 rounded-xl text-sm focus:ring-black focus:border-black"
+                                    >
+                                </div>
+                                <button 
+                                    @click="handleExportOrders" 
+                                    :disabled="isLoadingExport"
+                                    class="h-[42px] px-6 bg-black text-white rounded-xl hover:bg-gray-800 transition text-sm font-bold shadow-lg shadow-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    <svg v-if="isLoadingExport" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span>{{ isLoadingExport ? 'Загрузка...' : 'Скачать Excel' }}</span>
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-3">* Excel файл с детальным отчетом по заказам</p>
+                        </div>
+
+                        <!-- Блок 2 - Остатки -->
+                        <div class="bg-gray-50 border border-gray-200 p-5 rounded-2xl">
+                            <div>
+                                <p class="text-sm font-semibold text-gray-700">Наличие и остатки</p>
+                                <p class="text-xs text-gray-500 mt-1">Список всех товаров с разделением на активные и закончившиеся</p>
+                            </div>
+                            <button 
+                                @click="handleExportInventory" 
+                                :disabled="isLoadingExport"
+                                class="mt-4 h-[42px] w-full border-2 border-black text-black rounded-xl hover:bg-black hover:text-white transition text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                <svg v-if="isLoadingExport" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span>{{ isLoadingExport ? 'Загрузка...' : 'Выгрузить остатки склада' }}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </template>
     </ProfileLayout>
 </template>
+
+<style scoped>
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+</style>

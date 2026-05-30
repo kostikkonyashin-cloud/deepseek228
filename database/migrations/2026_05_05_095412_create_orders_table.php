@@ -14,7 +14,7 @@ return new class extends Migration {
             $table->enum('status', ['processing', 'ready', 'issued', 'cancelled', 'completed'])->default('processing');
             $table->decimal('total_amount', 10, 2);
 
-            $table->string('payment_id');
+            $table->string('payment_id')->nullable();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('address_id')->nullable()->constrained()->nullOnDelete();
 

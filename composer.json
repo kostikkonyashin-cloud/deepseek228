@@ -12,6 +12,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/socialite": "^5.26",
         "laravel/tinker": "^3.0",
+        "phpoffice/phpspreadsheet": "^5.7",
         "socialiteproviders/yandex": "^4.1",
         "tightenco/ziggy": "^2.6",
         "yoomoney/yookassa-sdk-php": "^3.13"

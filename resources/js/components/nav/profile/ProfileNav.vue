@@ -61,11 +61,14 @@ const page = usePage()
 
 const navItems = [
     { key: 'orders', label: 'Мои заказы', href: route('profile.index') },
+    { key: 'favorites', label: 'Избранное', href: route('favorites.index') },
 ]
 
 const adminNavItems = [
     { key: 'admin-users', label: 'Пользователи', href: route('admin.user.index') },
     { key: 'admin-products', label: 'Товары', href: route('admin.product.index') },
+    { key: 'admin-members', label: 'Команда', href: route('admin.team.index') },
+    { key: 'admin-workshop-services', label: 'Услуги мастерской', href: route('admin.workshop.index') },
 ]
 
 const catalogNavItems = [

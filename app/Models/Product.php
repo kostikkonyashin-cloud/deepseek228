@@ -65,6 +65,16 @@ class Product extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function favoritedBy()
+    {
+        return $this->belongsToMany(User::class, 'favorites')->withTimestamps();
+    }
+
+    public function isFavoritedByUser($userId)
+    {
+        return $this->favoritedBy()->where('user_id', $userId)->exists();
+    }
+
     public function scopeWhereCategory(Builder $query, string $category): Builder
     {
         $query->whereHas('category', function ($q) use ($category) {

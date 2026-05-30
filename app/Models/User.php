@@ -34,6 +34,16 @@ class User extends Authenticatable
         return $this->hasMany(SocialiteAccount::class);
     }
 
+    public function favorites()
+    {
+        return $this->belongsToMany(Product::class, 'favorites')->withTimestamps();
+    }
+
+    public function favoriteProducts()
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
     public function isClient()
     {
         return $this->role->name === 'Клиент';

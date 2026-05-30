@@ -9,8 +9,6 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use Exception;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
-use Inertia\Inertia;
 use YooKassa\Client;
 
 class OrderController extends Controller
@@ -45,7 +43,7 @@ class OrderController extends Controller
         $order = DB::transaction(function () use ($cartItems, $totalAmount, $request, $calculatedPrices, $cartItemIds) {
             $order = Order::create([
                 'order_number' => date('Ymd') . '-' . strtoupper(uniqid()),
-                'status' => 'pending_payment',
+                'status' => 'processing',
                 'total_amount' => $totalAmount,
                 'payment_id' => null,
                 'user_id' => auth()->id(),
@@ -77,7 +75,7 @@ class OrderController extends Controller
                 'payment_method_data' => ['type' => 'bank_card'],
                 'confirmation' => [
                     'type' => 'redirect',
-                    'return_url' => route('payment.callback', ['order' => $order->id]),
+                    'return_url' => route('webhook.yookassa'),
                 ],
                 'capture' => true,
                 'description' => "Оплата заказа №{$order->order_number}",

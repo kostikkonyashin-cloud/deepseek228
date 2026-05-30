@@ -16,7 +16,6 @@ class YookassaWebhookController extends Controller
         $client = new Client();
         $client->setAuth(config('services.yookassa.shop_id'), config('services.yookassa.secret_key'));
 
-        // Получаем событие
         $event = $request->all();
         $paymentId = $event['object']['id'] ?? null;
         $eventType = $event['event'] ?? null;
@@ -27,14 +26,12 @@ class YookassaWebhookController extends Controller
             return response()->json(['error' => 'No payment ID'], 400);
         }
 
-        // Находим заказ по payment_id
         $order = Order::where('payment_id', $paymentId)->first();
 
         if (!$order) {
             return response()->json(['error' => 'Order not found'], 404);
         }
 
-        // Получаем актуальный статус платежа из ЮKassa
         try {
             $payment = $client->getPaymentInfo($paymentId);
             $paymentStatus = $payment->getStatus();

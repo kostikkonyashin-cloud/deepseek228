@@ -66,7 +66,7 @@ const cancelOrder = (order) => {
                     </svg>
                     <p class="text-gray-500 text-lg">У вас пока нет заказов</p>
                     <p class="text-gray-400 text-sm mt-2">Начните покупки в нашем каталоге</p>
-                    <Link :href="route('index')" class="inline-block mt-4 text-purple-600 hover:underline">
+                    <Link :href="route('index')" class="inline-block mt-4 text-gray-600 hover:underline">
                         Перейти к покупкам
                     </Link>
                 </div>

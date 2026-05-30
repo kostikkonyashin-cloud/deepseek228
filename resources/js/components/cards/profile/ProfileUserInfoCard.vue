@@ -1,5 +1,5 @@
 <script setup>
-import { router, usePage } from '@inertiajs/vue3';
+import { router, usePage, Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 const page = usePage();
@@ -19,6 +19,7 @@ const logout = () => {
     });
 }
 </script>
+
 <template>
     <div class="bg-white rounded-xl shadow-sm p-6 mb-8">
         <div class="flex flex-col sm:flex-row items-center gap-6">
@@ -33,6 +34,10 @@ const logout = () => {
                 <p class="text-gray-500">{{ user.email }}</p>
             </div>
             <div class="flex gap-3">
+                <Link :href="route('profile.edit')"
+                    class="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition cursor-pointer">
+                    Редактировать профиль
+                </Link>
                 <form @submit.prevent="logout">
                     <button type="submit"
                         class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition cursor-pointer">

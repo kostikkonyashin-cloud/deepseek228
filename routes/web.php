@@ -5,14 +5,17 @@ use App\Http\Controllers\Web\Admin\Brand\AdminBrandController;
 use App\Http\Controllers\Web\Admin\Category\AdminCategoryController;
 use App\Http\Controllers\Web\Admin\Color\AdminColorController;
 use App\Http\Controllers\Web\Admin\Material\AdminMaterialController;
+use App\Http\Controllers\Web\Admin\Member\AdminCommandMemberController;
 use App\Http\Controllers\Web\Admin\Product\AdminProductController;
 use App\Http\Controllers\Web\Admin\Size\AdminSizeController;
 use App\Http\Controllers\Web\Admin\User\AdminUserController;
+use App\Http\Controllers\Web\Admin\Workshop\AdminWorkshopController;
 use App\Http\Controllers\Web\Auth\LoginController;
 use App\Http\Controllers\Web\Auth\RegisterController;
 use App\Http\Controllers\Web\Auth\SocialiteController;
 use App\Http\Controllers\Web\Brand\BrandController;
 use App\Http\Controllers\Web\Cart\CartController;
+use App\Http\Controllers\Web\Favorite\FavoriteController;
 use App\Http\Controllers\Web\HomeController;
 use App\Http\Controllers\Web\Manager\ManagerController;
 use App\Http\Controllers\Web\Order\OrderController;
@@ -21,6 +24,11 @@ use App\Http\Controllers\Web\Product\ProductController;
 use App\Http\Controllers\Web\Profile\ProfileController;
 use App\Http\Controllers\Web\Search\SearchController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+use App\Http\Controllers\Web\Admin\Export\AdminExportController;
+
+// Услуги мастерской
+Route::get('/workshop', [AdminWorkshopController::class, 'publicIndex'])->name('workshop.index');
 
 // Главная страница
 Route::get('/', HomeController::class)->name('index');
@@ -67,11 +75,25 @@ Route::middleware(['is_auth'])->group(function () {
     Route::post('/webhook/yookassa', [YookassaWebhookController::class, 'handle'])
         ->name('webhook.yookassa');
 
+    // Избранное пользователя
+    Route::middleware(['auth'])->controller(FavoriteController::class)->prefix('/favorites')->name('favorites.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/store', 'store')->name('store');
+        Route::delete('/{productId}', 'destroy')->name('destroy');
+        Route::get('/check/{productId}', 'check')->name('check');
+        Route::get('/ids', 'getFavoritesIds')->name('ids');
+    });
+
     // Профиль пользователя
     Route::prefix('/profile')->name('profile.')->group(function () {
         Route::controller(ProfileController::class)->group(function () {
             Route::get('/', 'index')->name('index'); // Главная страница профиля пользователя
             Route::delete('/destroy', 'destroy')->name('destroy'); // Выход пользователя из учетной записи
+
+            // Редактирование профиля
+            Route::get('/edit', 'edit')->name('edit');
+            Route::put('/update', 'update')->name('update');
+            Route::put('/update-password', 'updatePassword')->name('update-password');
         });
 
         // Панель управления менеджера по продажам
@@ -105,6 +127,14 @@ Route::middleware(['is_auth'])->group(function () {
 
     // Административная панель
     Route::middleware(['is_admin'])->prefix('/admin')->name('admin.')->group(function () {
+
+
+        // Управление участниками команды
+        Route::resource('team', AdminCommandMemberController::class);
+
+        // Управление услугами мастерской
+        Route::resource('workshop', AdminWorkshopController::class);
+
         // Управление пользователями
         Route::controller(AdminUserController::class)->prefix('/users')->name('user.')->group(function () {
             Route::get('/', 'index')->name('index'); // Просмотр всех пользователей
@@ -179,6 +209,12 @@ Route::middleware(['is_auth'])->group(function () {
             Route::post('/{size}/toggle-active', 'toggleActive')->name('toggle-active');
         });
 
+        Route::get('/export-orders',    [App\Http\Controllers\Web\Admin\Export\AdminExportController::class,
+                                        'exportOrders'])->name('export.orders');
+
+        Route::get('/export-inventory', [App\Http\Controllers\Web\Admin\Export\AdminExportController::class,
+                                        'exportProducts'])->name('export.inventory');
+
         // Управление категориями и подкатегориями
         Route::controller(AdminCategoryController::class)->prefix('/categories')->name('category.')->group(function () {
             Route::get('/', 'index')->name('index');
@@ -205,5 +241,5 @@ Route::middleware(['is_auth'])->group(function () {
 
 // Запасной маршрут на случай важных переговоров
 Route::fallback(function (Exception $e) {
-    return redirect()->route('index')->with('error', $e->getMessage());
+    return Inertia::render('404');
 });

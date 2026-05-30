@@ -1,11 +1,14 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { router, Link } from '@inertiajs/vue3'
+import { router, Link, usePage } from '@inertiajs/vue3'
 
 const props = defineProps(['product']);
+const page = usePage();
 
 const currentImageIndex = ref(0)
 const images = ref([])
+const isFavorited = ref(props.product.is_favorited || false)
+const isAuthenticated = computed(() => page.props.isAuthenticated || false)
 
 // Получаем первый доступный цвет, размер и материал
 const defaultColorId = computed(() => {
@@ -77,11 +80,63 @@ const addToCart = (e, product) => {
         }
     })
 }
+
+// Функция добавления/удаления из избранного
+const toggleFavorite = (e) => {
+    e.stopPropagation()
+    e.preventDefault()
+
+    if (!isAuthenticated.value) {
+        // Если не авторизован, перенаправляем на логин
+        router.get(route('login.create'))
+        return
+    }
+
+    if (isFavorited.value) {
+        // Удаляем из избранного
+        router.delete(route('favorites.destroy', props.product.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                isFavorited.value = false
+                // Можно добавить уведомление
+                console.log('Товар удален из избранного')
+            },
+            onError: (error) => {
+                console.error('Ошибка при удалении из избранного:', error)
+            }
+        })
+    } else {
+        // Добавляем в избранное
+        router.post(route('favorites.store'), { product_id: props.product.id }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                isFavorited.value = true
+                // Можно добавить уведомление
+                console.log('Товар добавлен в избранное')
+            },
+            onError: (error) => {
+                console.error('Ошибка при добавлении в избранное:', error)
+            }
+        })
+    }
+}
 </script>
 
 <template>
     <div
-        class="bg-white rounded-2xl border border-gray-100 p-3 flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+        class="bg-white rounded-2xl border border-gray-100 p-3 flex flex-col h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1 relative">
+
+        <!-- Кнопка избранного (сердечко) в левом верхнем углу -->
+        <button @click="toggleFavorite"
+            class="absolute top-3 left-3 z-20 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center hover:scale-110 transition-all duration-200 shadow-md cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-colors duration-200"
+                :class="isFavorited ? 'text-red-500 fill-red-500' : 'text-gray-400 hover:text-red-400'"
+                :fill="isFavorited ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+        </button>
+
         <Link :href="route('product.show', { product: product.slug, category: product.category.slug })"
             class="block flex-1">
 
@@ -122,7 +177,7 @@ const addToCart = (e, product) => {
 
                 <!-- Бейдж скидки -->
                 <div v-if="product.discount"
-                    class="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-md z-10">
+                    class="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-md z-10">
                     -{{ product.discount }}%
                 </div>
             </div>

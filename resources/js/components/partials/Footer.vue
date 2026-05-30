@@ -38,9 +38,9 @@
 
                     <div class="space-y-4 sm:space-y-6">
                         <div class="text-left md:text-right">
-                            <p class="font-semibold text-gray-900 text-lg sm:text-xl">8 800 200-11-45</p>
+                            <p class="font-semibold text-gray-900 text-lg sm:text-xl">8 983 402-06-63</p>
                             <p class="text-gray-500 text-xs sm:text-sm mt-1">Бесплатный звонок по России</p>
-                            <a href="#"
+                            <a href="https://t.me/s/SINBMXSHOP"
                                 class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors text-xs sm:text-sm mt-2">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                                     <path
@@ -149,13 +149,13 @@ const footerLinks = ref([
 const socialLinks = ref([
     {
         name: 'VK',
-        href: '#',
+        href: 'https://vk.com/sinbmx?ysclid=mpsh0bq9wx373721951',
         type: 'image',
         icon: 'https://upload.wikimedia.org/wikipedia/commons/2/21/VK.com-logo.svg'
     },
     {
         name: 'Telegram',
-        href: '#',
+        href: 'https://t.me/s/SINBMXSHOP',
         type: 'image',
         icon: 'https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg'
     },
